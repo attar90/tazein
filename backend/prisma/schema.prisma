@@ -1,0 +1,120 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String?  @unique
+  phone     String?  @unique
+  name      String
+  password  String
+  role      String   @default("PARTNER")  // بجای enum از string استفاده می‌کنیم
+  status    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  orders Order[]
+
+  @@map("users")
+}
+
+model Supplier {
+  id        String   @id @default(uuid())
+  name      String
+  logoUrl   String?
+  contactInfo String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  products Product[]
+  invoices SupplierInvoice[]
+
+  @@map("suppliers")
+}
+
+model Product {
+  id           String   @id @default(uuid())
+  wpProductId  Int?     @unique
+  name         String
+  sku          String?
+  description  String?
+  supplierId   String
+  baseUnit     String
+  images       String   // بجای String[] از JSON string استفاده می‌کنیم
+  publicPrice  Float
+  partnerPrice Float
+  status       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  supplier     Supplier   @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  inventory    Inventory?
+  orderItems   OrderItem[]
+
+  @@map("products")
+}
+
+model Inventory {
+  id          String   @id @default(uuid())
+  productId   String   @unique
+  availability String  @default("OUT_OF_STOCK")  // بجای enum از string استفاده می‌کنیم
+  quantity    Int?
+  updatedAt   DateTime @updatedAt
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@map("inventories")
+}
+
+model Order {
+  id          String   @id @default(uuid())
+  customerId  String
+  status      String   @default("pending")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  customer User        @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  items    OrderItem[]
+  invoices SupplierInvoice[]
+
+  @@map("orders")
+}
+
+model OrderItem {
+  id               String   @id @default(uuid())
+  orderId          String
+  productId        String
+  requestedUnit    String
+  requestedAmount  Float
+  computedUnit     String?
+  computedAmount   Float?
+  supplierId       String
+
+  order   Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@map("order_items")
+}
+
+model SupplierInvoice {
+  id         String   @id @default(uuid())
+  supplierId String
+  orderId    String
+  items      String   // JSON string برای ذخیره آیتم‌ها
+  pdfUrl     String?
+  status     String   @default("generated")
+  createdAt  DateTime @default(now())
+
+  supplier Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  order    Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@map("supplier_invoices")
+}
